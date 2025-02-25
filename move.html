@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Movement Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        #gameContainer {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            width: 80vmin;
+            height: 80vmin;
+            border: 2px solid black;
+        }
+
+        .cell {
+            border: 1px solid gray;
+            width: 100%;
+            height: 100%;
+        }
+
+        .player {
+            background-color: blue;
+        }
+
+        .wall {
+            background-color: black;
+        }
+
+        .coin {
+            background-color: gold;
+        }
+
+        .monster {
+            background-color: red;
+        }
+    </style>
+</head>
+<body>
+    <div id="turnDisplay">Turns: 0</div>
+    <div id="wallDisplay">Walls left: 0</div>
+    <div id="coinDisplay">Coins: 0</div>
+    <div id="gameContainer"></div>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const gridSize = 9;
+            let playerX, playerY;
+            let monsterX, monsterY;
+            let turnCount = 0;
+            let placingWalls = true;
+            let maxWalls = Math.floor((gridSize * gridSize) / 4);
+            let wallsLeft = maxWalls;
+            let coinX, coinY;
+            let coinsCollected = 0;
+            let monsterSpawned = false;
+
+            const turnDisplay = document.getElementById("turnDisplay");
+            const wallDisplay = document.getElementById("wallDisplay");
+            const coinDisplay = document.getElementById("coinDisplay");
+            const gameContainer = document.getElementById("gameContainer");
+            
+            const cells = [];
+            const walls = new Set();
+
+            for (let i = 0; i < gridSize * gridSize; i++) {
+                const cell = document.createElement("div");
+                cell.classList.add("cell");
+                cell.dataset.index = i;
+                gameContainer.appendChild(cell);
+                cells.push(cell);
+                
+                cell.addEventListener("click", () => {
+    let index = parseInt(cell.dataset.index);
+
+    if (placingWalls) {
+        if (walls.has(index)) {
+            // Remove the wall
+            walls.delete(index);
+            wallsLeft++;
+            console.log(`Wall removed at index ${index}`);
+        } else if (wallsLeft > 0) {
+            // Place a wall and play the sound
+            walls.add(index);
+            wallsLeft--;
+            console.log(`Wall placed at index ${index}`);
+            playWallSound(); // Play sound immediately on placement
+        }
+
+        wallDisplay.innerText = `Walls left: ${wallsLeft}`;
+        updateGrid(); // Refresh display
+    }
+});
+
+const bgMusic = new Audio("background.mp3");
+bgMusic.loop = true;
+
+function startGame() {
+    bgMusic.muted = false; // Ensure it's not muted
+    bgMusic.volume = 0.5;  // Adjust volume if needed
+    bgMusic.play().catch(error => console.log("Music play blocked:", error));
+}
+
+document.getElementById("startButton").addEventListener("click", () => {
+    startGame();
+    document.getElementById("startScreen").style.display = "none"; // Hide start screen
+});
+
+
+            }
+            
+            function spawnCoin() {
+                do {
+                    coinX = Math.floor(Math.random() * gridSize);
+                    coinY = Math.floor(Math.random() * gridSize);
+                } while (walls.has(coinY * gridSize + coinX) || (coinX === playerX && coinY === playerY));
+                updateGrid();
+            }
+            
+            function updateGrid() {
+                cells.forEach((cell, index) => {
+                    cell.className = "cell";
+                    if (!placingWalls && index === playerY * gridSize + playerX) {
+                        cell.classList.add("player");
+                    } else if (walls.has(index)) {
+                        cell.classList.add("wall");
+                    } else if (index === coinY * gridSize + coinX) {
+                        cell.classList.add("coin");
+                    } else if (monsterSpawned && index === monsterY * gridSize + monsterX) {
+                        cell.classList.add("monster");
+                    }
+                });
+                turnDisplay.innerText = `Turns: ${turnCount}`;
+                coinDisplay.innerText = `Coins: ${coinsCollected}`;
+            }
+
+            function movePlayer(dx, dy) {
+                if (placingWalls) return;
+                let newX = Math.max(0, Math.min(gridSize - 1, playerX + dx));
+                let newY = Math.max(0, Math.min(gridSize - 1, playerY + dy));
+                let newIndex = newY * gridSize + newX;
+
+                if (!walls.has(newIndex)) {
+                    playerX = newX;
+                    playerY = newY;
+                    turnCount++;
+                    
+                    if (playerX === coinX && playerY === coinY) {
+                        coinsCollected++;
+                        if (coinsCollected >= 7) {
+                            alert("You win!");
+                            location.reload();
+                        }
+                        spawnCoin();
+                    }
+                    
+                    if (turnCount === 3) {
+                        monsterSpawned = true;
+                    }
+                    
+                    if (monsterSpawned && turnCount >= 4 && turnCount % 2 === 0) {
+                        moveMonster();
+                    }
+                    
+                    updateGrid();
+                    checkGameOver();
+                }
+            }
+            
+            function moveMonster() {
+                if (Math.abs(playerX - monsterX) <= 1 && Math.abs(playerY - monsterY) <= 1) {
+                    alert("Game Over");
+                    location.reload();
+                    return;
+                }
+            }
+            
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "ArrowUp") movePlayer(0, -1);
+                if (event.key === "ArrowDown") movePlayer(0, 1);
+                if (event.key === "ArrowLeft") movePlayer(-1, 0);
+                if (event.key === "ArrowRight") movePlayer(1, 0);
+            });
+            
+            wallDisplay.innerText = `Walls left: ${wallsLeft}`;
+            updateGrid();
+        });
+    </script>
+</body>
+</html>
